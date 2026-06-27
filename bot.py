@@ -1,5 +1,5 @@
 from telegram import Update
-from telegram.ext import Application, MessageHandler, filters, ContextTypes
+from telegram.ext import Updater, MessageHandler, Filters, CallbackContext
 from openai import OpenAI
 import os
 
@@ -8,23 +8,26 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text or ""
+def handle(update: Update, context: CallbackContext):
+    text = update.message.text
 
-    if not update.message.reply_to_message and not update.message.entities:
+    if not update.message.reply_to_message:
         return
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": "تو یک دستیار تلگرام هستی. کوتاه جواب بده."},
+            {"role": "system", "content": "کوتاه جواب بده"},
             {"role": "user", "content": text}
         ]
     )
 
-    await update.message.reply_text(response.choices[0].message.content)
+    update.message.reply_text(response.choices[0].message.content)
 
-app = Application.builder().token(TELEGRAM_TOKEN).build()
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
+updater = Updater(TELEGRAM_TOKEN, use_context=True)
+dp = updater.dispatcher
 
-app.run_polling()
+dp.add_handler(MessageHandler(Filters.text, handle))
+
+updater.start_polling()
+updater.idle()
